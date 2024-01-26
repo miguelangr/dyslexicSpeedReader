@@ -1,0 +1,132 @@
+import pygame
+import time
+import sys
+import datetime
+
+
+
+def pause(current_word_index, total_words, speed):
+    paused = True
+    while paused:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    paused = False  # Salir de la pausa cuando se presiona la tecla de espacio
+
+        # Calcular el porcentaje leído y la velocidad
+        percent_read = (current_word_index / total_words) * 100
+        wpm = 60 / speed
+        words_remaining = total_words - current_word_index
+        time_remaining = datetime.timedelta(minutes=words_remaining / wpm)
+
+        # Mostrar información adicional
+        screen.fill(background)
+        info_texts = [
+            f"Leído: {percent_read:.2f}%",
+            f"Velocidad: {wpm:.2f} ppm",
+            f"Palabra: {current_word_index} de {total_words}",
+            f"Velocidad teórica: {wpm:.2f} ppm",
+            f"Tiempo restante estimado: {str(time_remaining)}"
+        ]
+
+        line_height = 40  # Altura de cada línea de texto
+        total_height = line_height * len(info_texts)  # Altura total del bloque de texto
+        start_y = (600 - total_height) // 2  # Centrar verticalmente en una pantalla de 600px de alto
+
+        for i, text in enumerate(info_texts):
+            rendered_text = pause_font.render(text, True, (255, 255, 255))  # Usar pause_font aquí
+            text_rect = rendered_text.get_rect(
+                center=(400, start_y + line_height * i))  # Centrar horizontalmente en 800px de ancho
+            screen.blit(rendered_text, text_rect)
+
+        pygame.display.update()
+
+
+# Inicializar Pygame y la pantalla
+pygame.font.init()
+screen = pygame.display.set_mode((800, 600))
+background = (0, 0, 0)
+myfont = pygame.font.Font(None, 90)
+opendyslexic_path = "./OpenDyslexic3-Regular.ttf"  # Cambia esto por la ruta real al archivo .ttf
+opendyslexic_font = pygame.font.Font(opendyslexic_path, 90)
+# Después de definir opendyslexic_font
+current_font = myfont  # Fuente estándar como fuente inicial
+
+words_per_minute = 120  # Velocidad inicial en palabras por minuto
+speed = 60 / words_per_minute  # Tiempo en segundos por palabra
+pause_font_size = 40  # Tamaño más pequeño para la pantalla de pausa
+pause_font = pygame.font.Font(None, pause_font_size)
+
+
+
+# Obtener la ruta del archivo desde los argumentos de la línea de comandos
+if len(sys.argv) > 1:
+    file_path = sys.argv[1]
+else:
+    print("Por favor, proporciona la ruta del archivo como argumento.")
+    exit()
+
+# Leer el archivo de texto
+with open(file_path, "r") as f:
+    words = f.read().split()
+total_words = len(words)
+
+# Variables para controlar la animación
+current_word_index = 0
+speed = 0.1  # Tiempo en segundos
+
+# Bucle principal
+running = True
+while running and current_word_index < total_words:
+    screen.fill(background)
+
+    # Obtener la palabra actual y dividirla
+    word = words[current_word_index]
+    middle_char_index = len(word) // 2
+    if len(word) % 2 == 0:
+        middle_char_index -= 1
+
+    first_part = word[:middle_char_index]
+    middle_char = word[middle_char_index]
+    last_part = word[middle_char_index + 1:]
+
+    # Renderiza la primera parte
+
+    first_text = current_font.render(first_part, True, (0, 255, 0))
+    first_text_width = first_text.get_width()
+    screen.blit(first_text, (400 - first_text_width, 300))
+
+    # Renderiza la letra central en rojo
+    middle_text = current_font.render(middle_char, True, (255, 0, 0))
+    screen.blit(middle_text, (400, 300))
+
+    # Renderiza la última parte
+    if last_part:
+        screen.blit(current_font.render(last_part, True, (0, 255, 0)), (400 + middle_text.get_width(), 300))
+
+    pygame.display.update()
+    time.sleep(speed)
+
+    # Manejo de eventos
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                pause(current_word_index, total_words, speed)
+            elif event.key == pygame.K_RIGHT:
+                current_word_index = min(current_word_index + 10, total_words - 1)
+            elif event.key == pygame.K_LEFT:
+                current_word_index = max(current_word_index - 10, 0)
+            elif event.key == pygame.K_UP:
+                words_per_minute += 10  # Aumentar velocidad en 50 ppm
+                speed = 60 / words_per_minute
+            elif event.key == pygame.K_DOWN:
+                words_per_minute = max(50, words_per_minute - 10)  # Reducir velocidad en 50 ppm, no menor a 50 ppm
+                speed = 60 / words_per_minute
+            elif event.key == pygame.K_1:
+                current_font = myfont  # Cambiar a fuente estándar
+            elif event.key == pygame.K_2:
+                current_font = opendyslexic_font  # Cambiar a OpenDyslexic
+
+    current_word_index += 1
+
+pygame.display.quit()
