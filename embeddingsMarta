@@ -1,0 +1,113 @@
+import os
+import numpy as np
+from gpt4all import GPT4All
+from transformers import AutoTokenizer
+from tqdm import tqdm
+import time
+
+# Cargar el modelo GPT4All
+model = GPT4All(
+    '/Users/miguelangelgarciarueda/Library/Application Support/nomic.ai/GPT4All/Wizard-Vicuna-7B-Uncensored.Q4_0.gguf')
+
+# Cargar el tokenizador
+tokenizer = AutoTokenizer.from_pretrained('microsoft/codebert-base')
+
+
+def tokenize_code(code):
+    return tokenizer.encode(code, truncation=True, max_length=512)
+
+
+def count_java_files(code_directory):
+    count = 0
+    for root, dirs, files in os.walk(code_directory):
+        for file in files:
+            if file.endswith('.java'):
+                count += 1
+    return count
+
+
+def generate_embeddings(code_directory, total_files, embeddings=None, file_paths=None, processed_files=0):
+    if embeddings is None:
+        embeddings = []
+    if file_paths is None:
+        file_paths = []
+    start_time = time.time()
+    last_save_time = start_time
+    progress_bar = tqdm(total=total_files, initial=processed_files, desc="Generando embeddings")
+    for root, dirs, files in os.walk(code_directory):
+        for file in files:
+            if file.endswith('.java'):
+                file_path = os.path.join(root, file)
+                if file_path not in file_paths:
+                    file_paths.append(file_path)
+                    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                        code = f.read()
+                        tokens = tokenize_code(code)
+                        code_text = tokenizer.decode(tokens)
+                        embedding = model.generate(code_text)
+                        embeddings.append(embedding)
+                    progress_bar.update(1)
+                    elapsed_time = time.time() - start_time
+                    remaining_files = total_files - progress_bar.n
+                    if progress_bar.n > 0:
+                        estimated_time = elapsed_time / progress_bar.n * remaining_files
+                        progress_bar.set_postfix(tiempo_restante=f"{estimated_time:.2f} segundos")
+
+                    # Realizar salvado intermedio cada hora
+                    current_time = time.time()
+                    if current_time - last_save_time >= 3600:
+                        np.save('embeddings_intermediate.npy', embeddings)
+                        with open('file_paths_intermediate.txt', 'w') as f:
+                            f.write('\n'.join(file_paths))
+                        last_save_time = current_time
+
+    progress_bar.close()
+    return embeddings, file_paths
+
+
+# Directorio que contiene el código Java
+code_directory = '/Users/miguelangelgarciarueda/MartaCodigo/iGRI'
+
+# Contar el número total de archivos Java
+total_files = count_java_files(code_directory)
+
+# Verificar si existe un estado previo
+if os.path.exists('embeddings_intermediate.npy') and os.path.exists('file_paths_intermediate.txt'):
+    # Cargar el estado previo
+    embeddings = list(np.load('embeddings_intermediate.npy', allow_pickle=True))
+    with open('file_paths_intermediate.txt', 'r') as f:
+        file_paths = f.read().splitlines()
+    processed_files = len(file_paths)
+    print(f"Continuando desde el estado previo con {processed_files} archivos procesados.")
+else:
+    # Iniciar desde cero
+    embeddings = []
+    file_paths = []
+    processed_files = 0
+    print("Iniciando el proceso de generación de embeddings desde cero.")
+
+# Generar embeddings
+embeddings, file_paths = generate_embeddings(code_directory, total_files, embeddings, file_paths, processed_files)
+
+# Guardar los embeddings y las rutas de archivo finales
+np.save('embeddings.npy', embeddings)
+with open('file_paths.txt', 'w') as f:
+    f.write('\n'.join(file_paths))
+
+# Realizar una consulta de ejemplo
+query = "Hola Mundo"
+query_tokens = tokenize_code(query)
+query_text = tokenizer.decode(query_tokens)
+query_embedding = model.generate(query_text)
+
+# Calcular similitudes coseno entre la consulta y los embeddings
+similarities = np.dot(embeddings, query_embedding) / (
+            np.linalg.norm(embeddings, axis=1) * np.linalg.norm(query_embedding))
+
+# Obtener los índices de los embeddings más similares
+top_indices = np.argsort(similarities)[::-1][:5]
+
+# Imprimir los archivos más relevantes para la consulta
+print("Archivos más relevantes para la consulta:")
+for index in top_indices:
+    print(file_paths[index])
