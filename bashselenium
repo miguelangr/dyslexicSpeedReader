@@ -1,24 +1,28 @@
 #!/bin/bash
-# Instalar si no está instalado
-# git clone https://github.com/Rasukarusan/shellnium
 
-# Iniciar el navegador y autenticarse
-source ~/shellnium/shellnium.sh
-selenium::start chrome
+# Configurar variables del proxy
+PROXY_HOST="proxy.corporativo.com"
+PROXY_PORT="8080"
+
+# Cargar Shellnium (asegúrate de tenerlo instalado)
+source /ruta/a/shellnium.sh
+
+# Iniciar el navegador con proxy
+selenium::start chrome --proxy-server="http://$PROXY_HOST:$PROXY_PORT"
+
+# Navegar a la URL
 selenium::navigate "https://db-author-prd.adobecqms.net/sites.html/content"
 
-# Esperar y realizar el login (necesitarás adaptar estos selectores)
-selenium::wait_for_element_present "id=username"
-selenium::input "id=username" "tu_usuario"
-selenium::input "id=password" "tu_contraseña"
-selenium::click "id=submit-button"
+# Esperar a que se cargue la página (ajusta según sea necesario)
+sleep 5
 
-# Esperar a que la autenticación se complete
-selenium::wait_for_url "https://db-author-prd.adobecqms.net/sites.html/content"
+# Extraer las cookies
+cookies=$(selenium::execute "return document.cookie;")
 
-# Extraer cookies
-cookies=$(selenium::execute "return document.cookie")
+# Guardar las cookies en un archivo
 echo "$cookies" > aem_cookies.txt
 
 # Cerrar el navegador
 selenium::quit
+
+echo "Cookies guardadas correctamente en 'aem_cookies.txt'"
