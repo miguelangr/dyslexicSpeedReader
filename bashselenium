@@ -4,25 +4,35 @@
 PROXY_HOST="proxy.corporativo.com"
 PROXY_PORT="8080"
 
-# Cargar Shellnium (asegúrate de tenerlo instalado)
-source /ruta/a/shellnium.sh
+python3 - << EOF
+from selenium import webdriver
+import time
 
-# Iniciar el navegador con proxy
-selenium::start chrome --proxy-server="http://$PROXY_HOST:$PROXY_PORT"
+# Configurar opciones del navegador con proxy
+options = webdriver.ChromeOptions()
+options.add_argument('--proxy-server=http://$PROXY_HOST:$PROXY_PORT')  # Configurar proxy
+options.add_argument('--headless')  # Ejecutar en modo sin interfaz gráfica (opcional)
+options.add_argument('--no-sandbox')
+options.add_argument('--disable-dev-shm-usage')
 
-# Navegar a la URL
-selenium::navigate "https://db-author-prd.adobecqms.net/sites.html/content"
+# Iniciar el navegador
+driver = webdriver.Chrome(options=options)
+driver.get("https://db-author-prd.adobecqms.net/sites.html/content")  # URL objetivo
 
 # Esperar a que se cargue la página (ajusta según sea necesario)
-sleep 5
+time.sleep(5)
 
-# Extraer las cookies
-cookies=$(selenium::execute "return document.cookie;")
+# Extraer cookies después de la carga de la página
+cookies = driver.get_cookies()
 
-# Guardar las cookies en un archivo
-echo "$cookies" > aem_cookies.txt
+# Guardar cookies en formato compatible con cURL
+cookie_string = "; ".join([f"{cookie['name']}={cookie['value']}" for cookie in cookies])
+with open("aem_cookies.txt", "w") as file:
+    file.write(cookie_string)
 
-# Cerrar el navegador
-selenium::quit
+driver.quit()
+print("Cookies guardadas correctamente en 'aem_cookies.txt'.")
+EOF
 
-echo "Cookies guardadas correctamente en 'aem_cookies.txt'"
+# Usar las cookies en curl para acceder a la URL protegida
+curl -b "aem_cookies.txt" "https://db-author-prd.adobecqms.net/sites.html/content"
