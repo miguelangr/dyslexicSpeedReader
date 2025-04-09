@@ -1,0 +1,24 @@
+#!/bin/bash
+# Instalar si no está instalado
+# git clone https://github.com/Rasukarusan/shellnium
+
+# Iniciar el navegador y autenticarse
+source ~/shellnium/shellnium.sh
+selenium::start chrome
+selenium::navigate "https://db-author-prd.adobecqms.net/sites.html/content"
+
+# Esperar y realizar el login (necesitarás adaptar estos selectores)
+selenium::wait_for_element_present "id=username"
+selenium::input "id=username" "tu_usuario"
+selenium::input "id=password" "tu_contraseña"
+selenium::click "id=submit-button"
+
+# Esperar a que la autenticación se complete
+selenium::wait_for_url "https://db-author-prd.adobecqms.net/sites.html/content"
+
+# Extraer cookies
+cookies=$(selenium::execute "return document.cookie")
+echo "$cookies" > aem_cookies.txt
+
+# Cerrar el navegador
+selenium::quit
