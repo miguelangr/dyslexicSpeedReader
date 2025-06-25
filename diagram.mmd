@@ -1,0 +1,47 @@
+graph TD
+    subgraph "Captura en Cliente"
+        direction LR
+        User[Usuario Final]
+        MFE[Microfrontend]
+        Tracker[OpenReplay Tracker]
+        
+        User --> MFE
+        MFE --> Tracker
+        Tracker --> MFE
+    end
+
+    subgraph "Plataforma Central OpenShift/GCP"
+        direction TB
+        subgraph "Transporte"
+            Kafka[Apache Kafka]
+        end
+        subgraph "Almacenamiento"
+            MinIO[MinIO S3 Storage]
+            Elastic[Elasticsearch]
+        end
+        subgraph "Interfaz"
+            OpenReplayUI[OpenReplay Dashboard]
+        end
+
+        Kafka --> Elastic
+        OpenReplayUI --> Elastic
+        OpenReplayUI --> MinIO
+    end
+
+    subgraph "Consulta"
+        BusinessUser[Usuario de Negocio]
+        BusinessUser --> OpenReplayUI
+    end
+    
+    Tracker -->|Snapshots visuales| MinIO
+    Tracker -->|Metadatos y eventos| Kafka
+
+    classDef actor fill:#e6e6e6,stroke:#333
+    classDef frontend fill:#f5f5f5,stroke:#00529B
+    classDef platform fill:#e8f5e9,stroke:#2e7d32
+    classDef storage fill:#fffde7,stroke:#f57f17
+    
+    class User,BusinessUser actor
+    class MFE,Tracker frontend
+    class Kafka,OpenReplayUI platform
+    class MinIO,Elastic storage
